@@ -3,7 +3,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(false)
         .compile_well_known_types(true)
         .compile(
-            &["proto/gnmi/gnmi.proto", "proto/gnmi_ext/gnmi_ext.proto", "proto/target/target.proto", "proto/collector/collector.proto"],
+            &["proto/gnmi/gnmi.proto",
+                "proto/gnmi_ext/gnmi_ext.proto",
+                "proto/target/target.proto",
+                "proto/collector/collector.proto",
+                "proto/google.proto"
+            ],
             &["proto"]
         )?;
     Ok(())
