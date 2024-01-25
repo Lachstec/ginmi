@@ -13,6 +13,9 @@ readme = "./README.md"
 repository = "https://github.com/Lachstec/ginmi"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+doctest = false
+
 [dependencies]
 tokio = { version = "1.35.1", features = ["rt-multi-thread", "macros"] }
 prost = "0.12.3"
