@@ -13,3 +13,14 @@ impl Client {
         Ok(Self(client))
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[tokio::test]
+    async fn connection_with_invalid_url() {
+        assert!(Client::new("invalid url").await.is_err());
+    }
+}
