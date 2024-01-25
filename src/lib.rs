@@ -1,14 +1,22 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod client;
+mod error;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub(crate) mod gen {
+    pub mod gnmi {
+        tonic::include_proto!("gnmi");
+    }
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    pub mod gnmi_ext {
+        tonic::include_proto!("gnmi_ext");
+    }
+
+    pub mod target {
+        tonic::include_proto!("target");
+    }
+
+    pub mod google {
+        pub mod protobuf {
+            tonic::include_proto!("google.protobuf");
+        }
     }
 }
