@@ -1,8 +1,16 @@
 [package]
+authors = ["Leon Lux <leon-niklas.lux@informatik.hs-fulda.de>"]
+categories = ["network-programming", "asynchronous"]
+description = """
+A asynchrounous gNMI client.
+"""
 name = "ginmi"
 version = "0.1.0"
 edition = "2021"
-
+keywords = ["rpc", "grpc", "async", "gnmi", "network-automation"]
+license = "AGPL-3"
+readme = "./README.md"
+repository = "https://github.com/Lachstec/ginmi"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
