@@ -1,5 +1,15 @@
-pub mod client;
+//! A Rust client for the gRPC Network Management Interface
+//!
+//! Provides a Client to modify and retrieve configuration from target network devices,
+//! as well as various telemetry data.
+mod client;
 mod error;
+
+pub use client::{
+    Client,
+    ClientBuilder,
+};
+
 
 pub(crate) mod gen {
     pub mod gnmi {
