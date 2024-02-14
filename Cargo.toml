@@ -2,17 +2,18 @@
 authors = ["Leon Lux <leon-niklas.lux@informatik.hs-fulda.de>"]
 categories = ["network-programming", "asynchronous"]
 description = """
-A asynchrounous gNMI client.
+An asynchrounous gNMI client to interact with and manage network devices.
 """
 name = "ginmi"
 version = "0.1.0"
 edition = "2021"
-keywords = ["rpc", "grpc", "async", "gnmi", "network-automation"]
-license = "AGPL-3"
+keywords = ["grpc", "async", "gnmi", "network-automation"]
+license = "MIT OR Apache-2.0"
 readme = "./README.md"
 repository = "https://github.com/Lachstec/ginmi"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+homepage = "https://github.com/Lachstec/ginmi"
 
+# Currently doctests always fail because of the generated protobuf module
 [lib]
 doctest = false
 

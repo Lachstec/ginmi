@@ -21,7 +21,9 @@ impl<'a> Client {
     /// according to the [gNMI Specification Section 3.2.2](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#322-the-capabilityresponse-message)
     ///
     /// # Examples
-    /// ```rust,ignore
+    /// ```rust
+    /// # use ginmi::Client
+    /// # tokio_test::block_on({ async
     /// let mut client = Client::builder("https://clab-srl01-srl:57400")
     ///     .tls(CERT, "clab-srl01-srl")
     ///     .build()
@@ -29,6 +31,7 @@ impl<'a> Client {
     ///     .unwrap();
     ///
     /// let capabilities = client.capabilities().await;
+    /// # }
     /// ```
     pub async fn capabilities(&mut self) -> CapabilityResponse {
         let req = CapabilityRequest::default();

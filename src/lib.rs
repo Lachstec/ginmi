@@ -10,6 +10,7 @@ pub use client::{
     ClientBuilder,
 };
 
+pub use error::GinmiError;
 
 pub(crate) mod gen {
     pub mod gnmi {
