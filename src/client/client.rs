@@ -118,3 +118,25 @@ impl<'a> ClientBuilder<'a> {
         Ok(Client(GNmiClient::new(channel)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn invalid_uri() {
+        let client = Client::builder("$$$$")
+            .build()
+            .await;
+        assert!(client.is_err());
+    }
+
+    #[tokio::test]
+    async fn invalid_tls_settings() {
+        let client = Client::builder("https://test:57400")
+            .tls("invalid cert", "invalid domain")
+            .build()
+            .await;
+        assert!(client.is_err());
+    }
+}
