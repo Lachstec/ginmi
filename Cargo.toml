@@ -5,7 +5,7 @@ description = """
 An asynchrounous gNMI client to interact with and manage network devices.
 """
 name = "ginmi"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 keywords = ["grpc", "async", "gnmi", "network-automation"]
 license = "MIT OR Apache-2.0"
