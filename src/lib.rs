@@ -2,14 +2,11 @@
 //!
 //! Provides a Client to modify and retrieve configuration from target network devices,
 //! as well as various telemetry data.
+mod auth;
 mod client;
 mod error;
-mod auth;
 
-pub use client::{
-    Client,
-    ClientBuilder,
-};
+pub use client::{Client, ClientBuilder};
 
 pub use error::GinmiError;
 
