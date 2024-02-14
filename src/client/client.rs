@@ -1,15 +1,18 @@
-use std::str::FromStr;
-use tonic::transport::{Uri, ClientTlsConfig, Certificate, Channel};
+use crate::auth::AuthService;
 use crate::error::GinmiError;
-use crate::gen::gnmi::{CapabilityRequest, CapabilityResponse};
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
-
-type ClientConn = GNmiClient<Channel>;
+use crate::gen::gnmi::{CapabilityRequest, CapabilityResponse};
+use http::HeaderValue;
+use std::str::FromStr;
+use std::sync::Arc;
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
 
 /// Provides the main functionality of connection to a target device
 /// and manipulating configuration or querying telemetry.
 #[derive(Debug, Clone)]
-pub struct Client(ClientConn);
+pub struct Client {
+    inner: GNmiClient<AuthService<Channel>>,
+}
 
 impl<'a> Client {
     /// Create a [`ClientBuilder`] that can create [`Client`]s.
@@ -35,17 +38,15 @@ impl<'a> Client {
     /// ```
     pub async fn capabilities(&mut self) -> CapabilityResponse {
         let req = CapabilityRequest::default();
-        match self.0.capabilities(req).await {
-            Ok(val) => {
-                val.into_inner()
-            },
-            Err(e) => panic!("Error getting capabilities: {:?}", e)
+        match self.inner.capabilities(req).await {
+            Ok(val) => val.into_inner(),
+            Err(e) => panic!("Error getting capabilities: {:?}", e),
         }
     }
 }
 
 #[derive(Debug, Copy, Clone)]
-struct Credentials<'a> {
+pub struct Credentials<'a> {
     username: &'a str,
     password: &'a str,
 }
@@ -71,10 +72,7 @@ impl<'a> ClientBuilder<'a> {
 
     /// Configure credentials to use for connecting to the target device.
     pub fn credentials(mut self, username: &'a str, password: &'a str) -> Self {
-        self.creds = Some(Credentials {
-            username,
-            password
-        });
+        self.creds = Some(Credentials { username, password });
         self
     }
 
@@ -95,12 +93,10 @@ impl<'a> ClientBuilder<'a> {
     /// - Returns [`GinmiError::TransportError`] if the TLS-Settings are invalid.
     /// - Returns [`GinmiError::TransportError`] if a connection to the target could not be
     /// established.
-    pub async fn build(self) -> Result<Client, GinmiError>{
+    pub async fn build(self) -> Result<Client, GinmiError> {
         let uri = match Uri::from_str(self.target) {
             Ok(u) => u,
-            Err(e) => {
-                return Err(GinmiError::InvalidUriError(e.to_string()))
-            }
+            Err(e) => return Err(GinmiError::InvalidUriError(e.to_string())),
         };
 
         let mut endpoint = Channel::builder(uri);
@@ -109,12 +105,42 @@ impl<'a> ClientBuilder<'a> {
             endpoint = endpoint.tls_config(self.tls_settings.unwrap())?;
         }
 
-        if self.creds.is_some() {
-            todo!("passing credentials is currently not implemented")
-        }
-
         let channel = endpoint.connect().await?;
 
-        Ok(Client(GNmiClient::new(channel)))
+        return if let Some(creds) = self.creds {
+            let user_header = HeaderValue::from_str(creds.username)?;
+            let pass_header = HeaderValue::from_str(creds.password)?;
+            Ok(Client {
+                inner: GNmiClient::new(AuthService::new(
+                    channel,
+                    Some(Arc::new(user_header)),
+                    Some(Arc::new(pass_header)),
+                )),
+            })
+        } else {
+            Ok(Client {
+                inner: GNmiClient::new(AuthService::new(channel, None, None)),
+            })
+        };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn invalid_uri() {
+        let client = Client::builder("$$$$").build().await;
+        assert!(client.is_err());
+    }
+
+    #[tokio::test]
+    async fn invalid_tls_settings() {
+        let client = Client::builder("https://test:57400")
+            .tls("invalid cert", "invalid domain")
+            .build()
+            .await;
+        assert!(client.is_err());
     }
 }
