@@ -4,6 +4,7 @@
 //! as well as various telemetry data.
 mod client;
 mod error;
+mod auth;
 
 pub use client::{
     Client,
