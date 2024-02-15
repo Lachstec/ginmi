@@ -34,15 +34,13 @@ impl<'a> Client {
     ///     .await
     ///     .unwrap();
     ///
-    /// let capabilities = client.capabilities().await;
+    /// let capabilities = client.capabilities().await?;
     /// # }
     /// ```
-    pub async fn capabilities(&mut self) -> Capabilities {
+    pub async fn capabilities(&mut self) -> Result<Capabilities, GinmiError> {
         let req = CapabilityRequest::default();
-        match self.inner.capabilities(req).await {
-            Ok(val) => Capabilities(val.into_inner()),
-            Err(e) => panic!("Error getting capabilities: {:?}", e),
-        }
+        let res = self.inner.capabilities(req).await?;
+        Ok(Capabilities(res.into_inner()))
     }
 }
 
