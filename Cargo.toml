@@ -5,7 +5,7 @@ description = """
 An asynchrounous gNMI client to interact with and manage network devices.
 """
 name = "ginmi"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 keywords = ["grpc", "async", "gnmi", "network-automation"]
 license = "MIT OR Apache-2.0"
@@ -26,6 +26,9 @@ tower-service = "0.3.2"
 # Needs to match tonics version of http, else implementations of the Service trait break.
 http = "0.2.0"
 tower = "0.4.13"
+
+[dev-dependencies]
+tokio-test = "0.4.3"
 
 [build-dependencies]
 tonic-build = "0.11.0"

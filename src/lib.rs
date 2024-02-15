@@ -6,8 +6,12 @@ mod auth;
 mod client;
 mod error;
 
-pub use client::{Client, ClientBuilder};
-
+pub use client::{
+    Client,
+    ClientBuilder,
+    Encoding,
+    Capabilities
+};
 pub use error::GinmiError;
 
 pub(crate) mod gen {
