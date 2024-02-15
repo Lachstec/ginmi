@@ -26,16 +26,18 @@ impl<'a> Client {
     ///
     /// # Examples
     /// ```rust
-    /// # use ginmi::Client
-    /// # tokio_test::block_on({ async
+    /// # use ginmi::Client;
+    /// # tokio_test::block_on(async {
+    /// # const CERT: &str = "CA Certificate";
     /// let mut client = Client::builder("https://clab-srl01-srl:57400")
     ///     .tls(CERT, "clab-srl01-srl")
+    ///     .credentials("admin", "admin")
     ///     .build()
     ///     .await
     ///     .unwrap();
     ///
-    /// let capabilities = client.capabilities().await?;
-    /// # }
+    /// let capabilities = client.capabilities().await.unwrap();
+    /// # });
     /// ```
     pub async fn capabilities(&mut self) -> Result<Capabilities, GinmiError> {
         let req = CapabilityRequest::default();
