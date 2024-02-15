@@ -1,7 +1,8 @@
 use crate::auth::AuthService;
 use crate::error::GinmiError;
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
-use crate::gen::gnmi::{CapabilityRequest, CapabilityResponse};
+use crate::gen::gnmi::CapabilityRequest;
+use super::capabilities::Capabilities;
 use http::HeaderValue;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -36,10 +37,10 @@ impl<'a> Client {
     /// let capabilities = client.capabilities().await;
     /// # }
     /// ```
-    pub async fn capabilities(&mut self) -> CapabilityResponse {
+    pub async fn capabilities(&mut self) -> Capabilities {
         let req = CapabilityRequest::default();
         match self.inner.capabilities(req).await {
-            Ok(val) => val.into_inner(),
+            Ok(val) => Capabilities(val.into_inner()),
             Err(e) => panic!("Error getting capabilities: {:?}", e),
         }
     }
