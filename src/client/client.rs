@@ -1,9 +1,11 @@
+use super::capabilities::Capabilities;
 use crate::auth::AuthService;
 use crate::error::GinmiError;
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
 use crate::gen::gnmi::get_request::DataType;
-use crate::gen::gnmi::{Encoding, CapabilityRequest, GetRequest, GetResponse, Path, PathElem};
-use super::capabilities::Capabilities;
+use crate::gen::gnmi::{
+    CapabilityRequest, Encoding, GetRequest, GetResponse, ModelData, Path, PathElem, Extension,
+};
 use http::HeaderValue;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -14,6 +16,35 @@ use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
 #[derive(Debug, Clone)]
 pub struct Client {
     inner: GNmiClient<AuthService<Channel>>,
+}
+
+fn get_path_from_str(path: &str) -> Path {
+    // Create a gMNI path from a string
+
+    // TODO: need to add a generator for the Path in various formats
+    // e.g., /interfaces/interface[name=eth0]/state/counters
+    //       openconfig:interfaces:interface[name=eth0]:state:counters
+    //       interfaces/interface[name=eth0]/state/counters
+    //
+    // also need to handle attributes in XPath format (e.g., [name=eth0])
+    let mut path_elems = Vec::new();
+    if path.matches('/').count() > 0 {
+        for elem in path.split('/') {
+            path_elems.push(PathElem {
+                name: elem.to_string(),
+                ..Default::default()
+            });
+        }
+    } else {
+        path_elems.push(PathElem {
+            name: path.to_string(),
+            ..Default::default()
+        });
+    }
+    Path {
+        elem: path_elems,
+        ..Default::default()
+    }
 }
 
 impl<'a> Client {
@@ -52,47 +83,33 @@ impl<'a> Client {
     ///
     /// # Examples
     /// t.b.w.
-    pub async fn get(&mut self, prefix: &str, path: &str) -> Result<GetResponse, GinmiError> {
+    pub async fn get(
+        &mut self,
+        prefix: &str,
+        path: &str,
+        data_type: DataType,
+        encoding: Encoding,
+        use_models: Vec<ModelData>,
+        extensions: Vec<Extension>,
+    ) -> Result<GetResponse, GinmiError> {
         let mut req = GetRequest::default();
 
         if prefix != "" {
-            req.prefix = Some(Path {
-                elem: vec![PathElem {
-                    name: prefix.to_string(),
-                    ..Default::default()
-                }],
-                ..Default::default()
-            });
+            req.prefix = Some(get_path_from_str(prefix));
         }
-        req.set_encoding(Encoding::JsonIetf);
-        req.set_type(DataType::Config);
-        // TODO: need to add a generator for the Path in various formats
-        if path.matches('/').count() > 0 {
-            let mut path_elems = Vec::new();
-            for elem in path.split('/') {
-                path_elems.push(PathElem {
-                    name: elem.to_string(),
-                    ..Default::default()
-                });
-            }
-            req.path.push(Path {
-                elem: path_elems,
-                ..Default::default()
-            });
-        } else {
-            req.path.push(Path {
-                elem: vec![PathElem {
-                    name: path.to_string(),
-                    ..Default::default()
-                }],
-                ..Default::default()
-            });
+        req.path.push(get_path_from_str(path));
+        req.set_type(data_type);
+        req.set_encoding(encoding);
+        for use_model in use_models {
+            req.use_models.push(use_model);
+        }
+        for extension in extensions {
+            req.extension.push(extension);
         }
         let res = self.inner.get(req).await?;
         //Ok(Notifications(res.into_inner()))
         Ok(res.into_inner())
     }
-
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -226,12 +243,22 @@ vvqc8ppQMQs/qOCtLea7p3GmhwIFCcsH8vIW0Cik9maLPs4=
             .build()
             .await
             .unwrap();
-        
+
         let capabilities = client.capabilities().await.unwrap();
         //assert_eq!("0.10.0", capabilities.expect("REASON").gnmi_version());
         assert_eq!("0.10.0", capabilities.gnmi_version());
 
-        let notifications = client.get("","system").await.unwrap();
+        let notifications = client
+            .get(
+                "",
+                "system",
+                DataType::Config,
+                Encoding::JsonIetf,
+                Vec::<ModelData>::new(),
+                Vec::<Extension>::new(),
+            )
+            .await
+            .unwrap();
         //assert!(Some(notifications.get_response().get_notification().len()) > Some(0));
         print!("{:?}", notifications);
     }
