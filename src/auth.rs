@@ -33,7 +33,7 @@ impl<S> AuthService<S> {
 impl<S, ReqBody, ResBody> Service<Request<ReqBody>> for AuthService<S>
 where
     S: Service<Request<ReqBody>, Response = ResBody>,
-    S::Error:,
+    S::Error: Into<Box<dyn Error + Send + Sync>>,
     ResBody: Body,
     <ResBody as Body>::Error: Into<Box<dyn Error + Send + Sync>>,
 {
