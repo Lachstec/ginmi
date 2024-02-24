@@ -4,8 +4,9 @@ use crate::error::GinmiError;
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
 use crate::gen::gnmi::get_request::DataType;
 use crate::gen::gnmi::{
-    CapabilityRequest, Encoding, GetRequest, GetResponse, ModelData, Path, PathElem, Extension,
+    CapabilityRequest, Encoding, GetRequest, GetResponse, ModelData, Path, PathElem
 };
+use crate::gen::gnmi_ext::Extension;
 use http::HeaderValue;
 use std::str::FromStr;
 use std::sync::Arc;
