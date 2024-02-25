@@ -3,9 +3,13 @@ use crate::error::GinmiError;
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
 use crate::gen::gnmi::CapabilityRequest;
 use super::capabilities::Capabilities;
+#[cfg(feature = "dangerous_configuration")]
+use super::dangerous::DangerousClientBuilder;
 use http::HeaderValue;
 use std::str::FromStr;
 use std::sync::Arc;
+#[cfg(feature = "dangerous_configuration")]
+use tokio_rustls::rustls::ClientConfig;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
 
 /// Provides the main functionality of connection to a target device
@@ -60,6 +64,8 @@ pub struct ClientBuilder<'a> {
     target: &'a str,
     creds: Option<Credentials<'a>>,
     tls_settings: Option<ClientTlsConfig>,
+    #[cfg(feature = "dangerous_configuration")]
+    pub(crate) client_config: Option<ClientConfig>
 }
 
 impl<'a> ClientBuilder<'a> {
@@ -68,6 +74,8 @@ impl<'a> ClientBuilder<'a> {
             target,
             creds: None,
             tls_settings: None,
+            #[cfg(feature = "dangerous_configuration")]
+            client_config: None,
         }
     }
 
@@ -85,6 +93,11 @@ impl<'a> ClientBuilder<'a> {
             .domain_name(domain_name);
         self.tls_settings = Some(settings);
         self
+    }
+
+    #[cfg(feature = "dangerous_configuration")]
+    pub fn dangerous(self) -> DangerousClientBuilder<'a> {
+        DangerousClientBuilder::from(self)
     }
 
     /// Consume the [`ClientBuilder`] and return a [`Client`].
