@@ -1,16 +1,25 @@
 use super::ClientBuilder;
 use std::convert::From;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
+use http::Uri;
+use hyper::client::HttpConnector;
+use hyper_rustls::HttpsConnector;
 use tokio_rustls::rustls::{Certificate, ClientConfig, Error, RootCertStore, ServerName};
 use tokio_rustls::rustls::client::{ServerCertVerifier, ServerCertVerified};
+use tonic::codegen::InterceptedService;
+use crate::auth::AuthInterceptor;
+use crate::{Client, GinmiError};
+use crate::gen::gnmi::g_nmi_client::GNmiClient;
 
 pub struct DangerousClientBuilder<'a> {
     builder: ClientBuilder<'a>,
+    client_config: Option<ClientConfig>
 }
 
 impl<'a> DangerousClientBuilder<'a> {
-    pub fn disable_certificate_verification(mut self) -> ClientBuilder<'a> {
+    pub fn disable_certificate_verification(mut self) -> Self {
         let roots = RootCertStore::empty();
 
         let mut tls = ClientConfig::builder()
@@ -22,15 +31,43 @@ impl<'a> DangerousClientBuilder<'a> {
             .set_certificate_verifier(Arc::new(NoCertificateVerification {}));
         
         
-        self.builder.client_config = Some(tls);
-        self.builder
+        self.client_config = Some(tls);
+        self
+    }
+
+    pub fn build(mut self) -> Result<GNmiClient<hyper::Client<HttpsConnector<HttpConnector>>>, GinmiError> {
+        let mut http = HttpConnector::new();
+        http.enforce_http(false);
+
+        let connector = tower::ServiceBuilder::new()
+            .layer_fn(move |s| {
+                let tls = self.client_config.clone().unwrap();
+
+                hyper_rustls::HttpsConnectorBuilder::new()
+                    .with_tls_config(tls)
+                    .https_or_http()
+                    .enable_http2()
+                    .wrap_connector(s)
+            })
+            .service(http);
+
+        let http_client = hyper::Client::builder().build(connector);
+
+        let uri = match Uri::from_str(self.builder.target) {
+            Ok(u) => u,
+            Err(e) => return Err(GinmiError::InvalidUriError(e.to_string())),
+        };
+        
+        Ok(GNmiClient::with_origin(http_client, uri))
+
     }
 }
 
 impl<'a> From<ClientBuilder<'a>> for DangerousClientBuilder<'a> {
     fn from(builder: ClientBuilder<'a>) -> Self {
         DangerousClientBuilder {
-            builder
+            builder,
+            client_config: None
         }
     }
 }
