@@ -7,8 +7,6 @@ use super::capabilities::Capabilities;
 use super::dangerous::DangerousClientBuilder;
 use std::str::FromStr;
 use hyper::body::Bytes;
-#[cfg(feature = "dangerous_configuration")]
-use tokio_rustls::rustls::ClientConfig;
 use tonic::codegen::{Body, InterceptedService, StdError};
 use tonic::metadata::AsciiMetadataValue;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
@@ -70,11 +68,9 @@ pub struct Credentials<'a> {
 /// Used to configure and create instances of [`Client`].
 #[derive(Debug, Clone)]
 pub struct ClientBuilder<'a> {
-    target: &'a str,
-    creds: Option<Credentials<'a>>,
+    pub(crate) target: &'a str,
+    pub(crate) creds: Option<Credentials<'a>>,
     tls_settings: Option<ClientTlsConfig>,
-    #[cfg(feature = "dangerous_configuration")]
-    pub(crate) client_config: Option<ClientConfig>
 }
 
 impl<'a> ClientBuilder<'a> {
@@ -83,8 +79,6 @@ impl<'a> ClientBuilder<'a> {
             target,
             creds: None,
             tls_settings: None,
-            #[cfg(feature = "dangerous_configuration")]
-            client_config: None,
         }
     }
 
