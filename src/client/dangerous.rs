@@ -13,7 +13,6 @@ use tonic::codegen::InterceptedService;
 use crate::{Client, GinmiError};
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
 use crate::auth::AuthInterceptor;
-use crate::client::dangerous::service::AuthSvc;
 
 type DangerousClient = InterceptedService<hyper::Client<HttpsConnector<HttpConnector>, BoxBody>, AuthInterceptor>;
 
@@ -89,52 +88,5 @@ struct NoCertificateVerification;
 impl ServerCertVerifier for NoCertificateVerification {
     fn verify_server_cert(&self, _end_entity: &Certificate, _intermediates: &[Certificate], _server_name: &ServerName, _scts: &mut dyn Iterator<Item=&[u8]>, _ocsp_response: &[u8], _now: SystemTime) -> Result<ServerCertVerified, Error> {
         Ok(ServerCertVerified::assertion())
-    }
-}
-
-mod service {
-    use http::{Request, Response};
-    use std::future::Future;
-    use std::pin::Pin;
-    use std::task::{Context, Poll};
-    use tonic::body::BoxBody;
-    use tonic::transport::Body;
-    use tonic::transport::Channel;
-    use tower::Service;
-
-    pub struct AuthSvc {
-        inner: Channel,
-    }
-
-    impl AuthSvc {
-        pub fn new(inner: Channel) -> Self {
-            AuthSvc { inner }
-        }
-    }
-
-    impl Service<Request<BoxBody>> for AuthSvc {
-        type Response = Response<Body>;
-        type Error = Box<dyn std::error::Error + Send + Sync>;
-        #[allow(clippy::type_complexity)]
-        type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-        fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-            self.inner.poll_ready(cx).map_err(Into::into)
-        }
-
-        fn call(&mut self, req: Request<BoxBody>) -> Self::Future {
-            // This is necessary because tonic internally uses `tower::buffer::Buffer`.
-            // See https://github.com/tower-rs/tower/issues/547#issuecomment-767629149
-            // for details on why this is necessary
-            let clone = self.inner.clone();
-            let mut inner = std::mem::replace(&mut self.inner, clone);
-
-            Box::pin(async move {
-                // Do extra async work here...
-                let response = inner.call(req).await?;
-
-                Ok(response)
-            })
-        }
     }
 }
