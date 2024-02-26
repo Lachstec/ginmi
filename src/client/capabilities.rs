@@ -1,6 +1,6 @@
-use crate::Client;
 use crate::gen::gnmi::CapabilityResponse;
 use crate::gen::gnmi::ModelData;
+use crate::Client;
 
 pub use crate::gen::gnmi::Encoding;
 
@@ -71,7 +71,7 @@ impl<'a> Capabilities {
         self.0.supported_models.contains(&ModelData {
             name: name.to_string(),
             organization: organization.to_string(),
-            version: version.to_string()
+            version: version.to_string(),
         })
     }
 
@@ -106,10 +106,9 @@ impl<'a> Capabilities {
             Encoding::Bytes => 1,
             Encoding::Proto => 2,
             Encoding::Ascii => 3,
-            Encoding::JsonIetf => 4
+            Encoding::JsonIetf => 4,
         };
 
         self.0.supported_encodings.contains(&enc)
     }
 }
-

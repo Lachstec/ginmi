@@ -1,12 +1,12 @@
+use super::capabilities::Capabilities;
+#[cfg(feature = "dangerous_configuration")]
+use super::dangerous::DangerousClientBuilder;
 use crate::auth::AuthInterceptor;
 use crate::error::GinmiError;
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
 use crate::gen::gnmi::CapabilityRequest;
-use super::capabilities::Capabilities;
-#[cfg(feature = "dangerous_configuration")]
-use super::dangerous::DangerousClientBuilder;
-use std::str::FromStr;
 use hyper::body::Bytes;
+use std::str::FromStr;
 use tonic::codegen::{Body, InterceptedService, StdError};
 use tonic::metadata::AsciiMetadataValue;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
@@ -59,8 +59,8 @@ where
 
 #[derive(Debug, Copy, Clone)]
 pub struct Credentials<'a> {
-    username: &'a str,
-    password: &'a str,
+    pub(crate) username: &'a str,
+    pub(crate) password: &'a str,
 }
 
 /// Builder for [`Client`]s
@@ -110,7 +110,9 @@ impl<'a> ClientBuilder<'a> {
     /// - Returns [`GinmiError::TransportError`] if the TLS-Settings are invalid.
     /// - Returns [`GinmiError::TransportError`] if a connection to the target could not be
     /// established.
-    pub async fn build(self) -> Result<Client<InterceptedService<Channel, AuthInterceptor>>, GinmiError> {
+    pub async fn build(
+        self,
+    ) -> Result<Client<InterceptedService<Channel, AuthInterceptor>>, GinmiError> {
         let uri = match Uri::from_str(self.target) {
             Ok(u) => u,
             Err(e) => return Err(GinmiError::InvalidUriError(e.to_string())),
@@ -124,19 +126,15 @@ impl<'a> ClientBuilder<'a> {
 
         let channel = endpoint.connect().await?;
         let (username, password) = match self.creds {
-            Some(c) => {
-                (
-                    Some(AsciiMetadataValue::from_str(c.username)?),
-                    Some(AsciiMetadataValue::from_str(c.password)?)
-                )
-            },
-            None => {
-                (None, None)
-            }
+            Some(c) => (
+                Some(AsciiMetadataValue::from_str(c.username)?),
+                Some(AsciiMetadataValue::from_str(c.password)?),
+            ),
+            None => (None, None),
         };
 
         Ok(Client {
-            inner: GNmiClient::with_interceptor(channel, AuthInterceptor::new(username, password))
+            inner: GNmiClient::with_interceptor(channel, AuthInterceptor::new(username, password)),
         })
     }
 }
@@ -147,7 +145,9 @@ mod tests {
 
     #[tokio::test]
     async fn invalid_uri() {
-        let client = Client::<InterceptedService<Channel, AuthInterceptor>>::builder("$$$$").build().await;
+        let client = Client::<InterceptedService<Channel, AuthInterceptor>>::builder("$$$$")
+            .build()
+            .await;
         assert!(client.is_err());
     }
 
