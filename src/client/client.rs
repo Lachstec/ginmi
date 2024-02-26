@@ -97,8 +97,10 @@ impl<'a> ClientBuilder<'a> {
         self.tls_settings = Some(settings);
         self
     }
-
+    
     #[cfg(feature = "dangerous_configuration")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
+    /// Access configuration options that are dangerous and require extra care.
     pub fn dangerous(self) -> DangerousClientBuilder<'a> {
         DangerousClientBuilder::from(self)
     }

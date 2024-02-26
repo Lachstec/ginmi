@@ -9,6 +9,9 @@ mod error;
 pub use client::{Capabilities, Client, ClientBuilder, Encoding};
 pub use error::GinmiError;
 
+#[cfg(feature = "dangerous_configuration")]
+pub use client::{DangerousClientBuilder, DangerousConnection};
+
 pub(crate) mod gen {
     pub mod gnmi {
         tonic::include_proto!("gnmi");
