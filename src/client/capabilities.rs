@@ -1,6 +1,5 @@
 use crate::gen::gnmi::CapabilityResponse;
 use crate::gen::gnmi::ModelData;
-use crate::Client;
 
 pub use crate::gen::gnmi::Encoding;
 
