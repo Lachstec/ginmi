@@ -1,7 +1,11 @@
 //! A Rust client for the gRPC Network Management Interface
 //!
-//! Provides a Client to modify and retrieve configuration from target network devices,
-//! as well as various telemetry data.
+//! [ginmi](https://github.com/Lachstec/ginmi) is a crate based on [tonic](https://github.com/hyperium/tonic) for communicating with network
+//! devices that support [gNMI](https://openconfig.net/docs/gnmi/gnmi-specification/). It enables
+//! querying and manipulating of the device configuration and status.
+//! 
+//! # Feature Flags
+//! - `dangerous_configuration`: allows for insecure configurations, for example not validating TLS-Certificates
 mod auth;
 mod client;
 mod error;
