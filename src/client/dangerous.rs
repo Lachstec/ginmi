@@ -8,7 +8,7 @@ use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;
 use tokio_rustls::rustls::{Certificate, ClientConfig, Error, RootCertStore, ServerName};
 use tokio_rustls::rustls::client::{ServerCertVerifier, ServerCertVerified};
-use crate::GinmiError;
+use crate::{Client, GinmiError};
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
 
 pub struct DangerousClientBuilder<'a> {
@@ -33,7 +33,7 @@ impl<'a> DangerousClientBuilder<'a> {
         self
     }
 
-    pub fn build(mut self) -> Result<GNmiClient<hyper::Client<HttpsConnector<HttpConnector>, tonic::body::BoxBody>>, GinmiError> {
+    pub async fn build(mut self) -> Result<Client<hyper::Client<HttpsConnector<HttpConnector>, tonic::body::BoxBody>>, GinmiError> {
         let mut http = HttpConnector::new();
         http.enforce_http(false);
 
@@ -58,7 +58,9 @@ impl<'a> DangerousClientBuilder<'a> {
         
         let client = GNmiClient::with_origin(http_client, uri);
         
-        Ok(client)
+        Ok(Client {
+            inner: client
+        })
     }
 }
 

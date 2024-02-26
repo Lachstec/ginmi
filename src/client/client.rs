@@ -15,7 +15,7 @@ use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
 /// and manipulating configuration or querying telemetry.
 #[derive(Debug, Clone)]
 pub struct Client<T> {
-    inner: GNmiClient<T>,
+    pub(crate) inner: GNmiClient<T>,
 }
 
 impl<'a> Client<InterceptedService<Channel, AuthInterceptor>> {
