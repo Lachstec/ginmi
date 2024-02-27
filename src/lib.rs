@@ -8,7 +8,6 @@ mod auth;
 pub mod client;
 pub mod error;
 
-
 pub(crate) mod gen {
     pub mod gnmi {
         tonic::include_proto!("gnmi");
