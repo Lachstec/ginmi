@@ -12,10 +12,26 @@
 //! You should never use the functionality provided by this module, except when you need to test
 //! something locally and do not care for the certificates. Using this in the wild is very dangerous because
 //! you are susceptible to Man-in-the-Middle attacks.
+//! 
+//! # Examples
+//! Connecting to a SR-Linux device, ignoring any validation issues that happen with its certificate:
+//! ```rust
+//! # use ginmi::client::Client;
+//! # fn main() -> std::io::Result<()> {
+//! # tokio_test::block_on(async {
+//! # const CA_CERT: &str = "CA Certificate";
+//! let mut client = Client::builder("https://clab-srl01-srl:57400")
+//!     .credentials("admin", "password1")
+//!     .dangerous()
+//!     .disable_certificate_validation()
+//!     .build()
+//!     .await?;
+//! # })}
 use super::ClientBuilder;
 use crate::auth::AuthInterceptor;
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
-use crate::{Client, GinmiError};
+use crate::client::Client;
+use crate::error::GinmiError;
 use http::Uri;
 use hyper::client::HttpConnector;
 use hyper_rustls::HttpsConnector;

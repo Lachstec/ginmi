@@ -2,15 +2,12 @@
 //!
 //! Provides a Client to modify and retrieve configuration from target network devices,
 //! as well as various telemetry data.
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 mod auth;
-mod client;
-mod error;
+pub mod client;
+pub mod error;
 
-pub use client::{Capabilities, Client, ClientBuilder, Encoding};
-pub use error::GinmiError;
-
-#[cfg(feature = "dangerous_configuration")]
-pub use client::{DangerousClientBuilder, DangerousConnection};
 
 pub(crate) mod gen {
     pub mod gnmi {
