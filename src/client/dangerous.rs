@@ -83,7 +83,7 @@ impl<'a> DangerousClientBuilder<'a> {
     /// - Returns [`GinmiError::TransportError`] if the TLS-Settings are invalid.
     /// - Returns [`GinmiError::TransportError`] if a connection to the target could not be
     /// established.
-    pub async fn build(mut self) -> Result<Client<DangerousConnection>, GinmiError> {
+    pub async fn build(self) -> Result<Client<DangerousConnection>, GinmiError> {
         // create a hyper HttpConnector
         let mut http = HttpConnector::new();
         http.enforce_http(false);
