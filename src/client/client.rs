@@ -1,26 +1,37 @@
-use crate::auth::AuthService;
+use super::capabilities::Capabilities;
+#[cfg(feature = "dangerous_configuration")]
+use super::dangerous::DangerousClientBuilder;
+use crate::auth::AuthInterceptor;
 use crate::error::GinmiError;
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
 use crate::gen::gnmi::CapabilityRequest;
-use super::capabilities::Capabilities;
-use http::HeaderValue;
+use hyper::body::Bytes;
 use std::str::FromStr;
-use std::sync::Arc;
+use tonic::codegen::{Body, InterceptedService, StdError};
+use tonic::metadata::AsciiMetadataValue;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
 
 /// Provides the main functionality of connection to a target device
 /// and manipulating configuration or querying telemetry.
 #[derive(Debug, Clone)]
-pub struct Client {
-    inner: GNmiClient<AuthService<Channel>>,
+pub struct Client<T> {
+    pub(crate) inner: GNmiClient<T>,
 }
 
-impl<'a> Client {
+impl<'a> Client<InterceptedService<Channel, AuthInterceptor>> {
     /// Create a [`ClientBuilder`] that can create [`Client`]s.
     pub fn builder(target: &'a str) -> ClientBuilder<'a> {
         ClientBuilder::new(target)
     }
+}
 
+impl<T> Client<T>
+where
+    T: tonic::client::GrpcService<tonic::body::BoxBody>,
+    T::Error: Into<StdError>,
+    T::ResponseBody: Body<Data = Bytes> + Send + 'static,
+    <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+{
     /// Returns information from the target device about its capabilities
     /// according to the [gNMI Specification Section 3.2.2](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#322-the-capabilityresponse-message)
     ///
@@ -48,8 +59,8 @@ impl<'a> Client {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Credentials<'a> {
-    username: &'a str,
-    password: &'a str,
+    pub(crate) username: &'a str,
+    pub(crate) password: &'a str,
 }
 
 /// Builder for [`Client`]s
@@ -57,8 +68,8 @@ pub struct Credentials<'a> {
 /// Used to configure and create instances of [`Client`].
 #[derive(Debug, Clone)]
 pub struct ClientBuilder<'a> {
-    target: &'a str,
-    creds: Option<Credentials<'a>>,
+    pub(crate) target: &'a str,
+    pub(crate) creds: Option<Credentials<'a>>,
     tls_settings: Option<ClientTlsConfig>,
 }
 
@@ -87,6 +98,13 @@ impl<'a> ClientBuilder<'a> {
         self
     }
 
+    #[cfg(feature = "dangerous_configuration")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
+    /// Access configuration options that are dangerous and require extra care.
+    pub fn dangerous(self) -> DangerousClientBuilder<'a> {
+        DangerousClientBuilder::from(self)
+    }
+
     /// Consume the [`ClientBuilder`] and return a [`Client`].
     ///
     /// # Errors
@@ -94,7 +112,9 @@ impl<'a> ClientBuilder<'a> {
     /// - Returns [`GinmiError::TransportError`] if the TLS-Settings are invalid.
     /// - Returns [`GinmiError::TransportError`] if a connection to the target could not be
     /// established.
-    pub async fn build(self) -> Result<Client, GinmiError> {
+    pub async fn build(
+        self,
+    ) -> Result<Client<InterceptedService<Channel, AuthInterceptor>>, GinmiError> {
         let uri = match Uri::from_str(self.target) {
             Ok(u) => u,
             Err(e) => return Err(GinmiError::InvalidUriError(e.to_string())),
@@ -107,22 +127,17 @@ impl<'a> ClientBuilder<'a> {
         }
 
         let channel = endpoint.connect().await?;
-
-        return if let Some(creds) = self.creds {
-            let user_header = HeaderValue::from_str(creds.username)?;
-            let pass_header = HeaderValue::from_str(creds.password)?;
-            Ok(Client {
-                inner: GNmiClient::new(AuthService::new(
-                    channel,
-                    Some(Arc::new(user_header)),
-                    Some(Arc::new(pass_header)),
-                )),
-            })
-        } else {
-            Ok(Client {
-                inner: GNmiClient::new(AuthService::new(channel, None, None)),
-            })
+        let (username, password) = match self.creds {
+            Some(c) => (
+                Some(AsciiMetadataValue::from_str(c.username)?),
+                Some(AsciiMetadataValue::from_str(c.password)?),
+            ),
+            None => (None, None),
         };
+
+        Ok(Client {
+            inner: GNmiClient::with_interceptor(channel, AuthInterceptor::new(username, password)),
+        })
     }
 }
 
@@ -132,7 +147,9 @@ mod tests {
 
     #[tokio::test]
     async fn invalid_uri() {
-        let client = Client::builder("$$$$").build().await;
+        let client = Client::<InterceptedService<Channel, AuthInterceptor>>::builder("$$$$")
+            .build()
+            .await;
         assert!(client.is_err());
     }
 
