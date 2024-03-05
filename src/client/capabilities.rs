@@ -1,4 +1,3 @@
-use crate::Client;
 use crate::gen::gnmi::CapabilityResponse;
 use crate::gen::gnmi::ModelData;
 
@@ -7,7 +6,7 @@ pub use crate::gen::gnmi::Encoding;
 /// Capabilities of a given gNMI Target device.
 ///
 /// Contains information about the capabilities that supported by a gNMI Target device.
-/// Obtained via [`Client::capabilities`].
+/// Obtained via [Client::capabilities](super::Client::capabilities).
 #[derive(Debug, Clone)]
 pub struct Capabilities(pub CapabilityResponse);
 
@@ -16,7 +15,7 @@ impl<'a> Capabilities {
     ///
     /// # Examples
     /// ```rust
-    /// # use ginmi::{Client, Capabilities};
+    /// # use ginmi::client::{Client, Capabilities};
     /// # fn main() -> std::io::Result<()> {
     /// # tokio_test::block_on(async {
     /// # const CERT: &str = "CA Certificate";
@@ -46,7 +45,7 @@ impl<'a> Capabilities {
     ///
     /// # Examples
     /// ```rust
-    /// # use ginmi::{Client, Capabilities};
+    /// # use ginmi::client::{Client, Capabilities};
     /// # fn main() -> std::io::Result<()> {
     /// # tokio_test::block_on(async {
     /// # const CERT: &str = "CA Certificate";
@@ -71,7 +70,7 @@ impl<'a> Capabilities {
         self.0.supported_models.contains(&ModelData {
             name: name.to_string(),
             organization: organization.to_string(),
-            version: version.to_string()
+            version: version.to_string(),
         })
     }
 
@@ -82,7 +81,7 @@ impl<'a> Capabilities {
     ///
     /// # Examples
     /// ```rust
-    /// # use ginmi::{Client, Capabilities, Encoding};
+    /// # use ginmi::client::{Client, Capabilities, Encoding};
     /// # fn main() -> std::io::Result<()> {
     /// # tokio_test::block_on(async {
     /// # const CERT: &str = "CA Certificate";
@@ -106,10 +105,9 @@ impl<'a> Capabilities {
             Encoding::Bytes => 1,
             Encoding::Proto => 2,
             Encoding::Ascii => 3,
-            Encoding::JsonIetf => 4
+            Encoding::JsonIetf => 4,
         };
 
         self.0.supported_encodings.contains(&enc)
     }
 }
-

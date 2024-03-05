@@ -14,5 +14,6 @@ fn main() {
                 "proto/google.proto",
             ],
             &[proto_dir],
-        ).expect("Failed to compile protobuf files");
+        )
+        .expect("Failed to compile protobuf files");
 }

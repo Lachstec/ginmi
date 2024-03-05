@@ -1,58 +1,70 @@
 use super::capabilities::Capabilities;
-use crate::auth::AuthService;
+#[cfg(feature = "dangerous_configuration")]
+use super::dangerous::DangerousClientBuilder;
+use crate::auth::AuthInterceptor;
 use crate::error::GinmiError;
 use crate::gen::gnmi::g_nmi_client::GNmiClient;
-use crate::gen::gnmi::get_request::DataType;
 use crate::gen::gnmi::{
     CapabilityRequest, Encoding, GetRequest, GetResponse, ModelData, Path, PathElem
 };
+// remove internal data types of gnmi
+use crate::gen::gnmi::get_request::DataType;
 use crate::gen::gnmi_ext::Extension;
-use http::HeaderValue;
+use hyper::body::Bytes;
 use std::str::FromStr;
-use std::sync::Arc;
+use tonic::codegen::{Body, InterceptedService, StdError};
+use tonic::metadata::AsciiMetadataValue;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Uri};
 
 /// Provides the main functionality of connection to a target device
 /// and manipulating configuration or querying telemetry.
 #[derive(Debug, Clone)]
-pub struct Client {
-    inner: GNmiClient<AuthService<Channel>>,
+pub struct Client<T> {
+    pub(crate) inner: GNmiClient<T>,
 }
 
-fn get_path_from_str(path: &str) -> Path {
-    // Create a gMNI path from a string
-
-    // TODO: need to add a generator for the Path in various formats
-    // e.g., /interfaces/interface[name=eth0]/state/counters
-    //       openconfig:interfaces:interface[name=eth0]:state:counters
-    //       interfaces/interface[name=eth0]/state/counters
-    //
-    // also need to handle attributes in XPath format (e.g., [name=eth0])
-    let mut path_elems = Vec::new();
-    if path.matches('/').count() > 0 {
-        for elem in path.split('/') {
-            path_elems.push(PathElem {
-                name: elem.to_string(),
-                ..Default::default()
-            });
-        }
-    } else {
-        path_elems.push(PathElem {
-            name: path.to_string(),
-            ..Default::default()
-        });
-    }
-    Path {
-        elem: path_elems,
-        ..Default::default()
-    }
-}
-
-impl<'a> Client {
+impl<'a> Client<InterceptedService<Channel, AuthInterceptor>> {
     /// Create a [`ClientBuilder`] that can create [`Client`]s.
     pub fn builder(target: &'a str) -> ClientBuilder<'a> {
         ClientBuilder::new(target)
     }
+}
+
+impl<T> Client<T>
+where
+    T: tonic::client::GrpcService<tonic::body::BoxBody>,
+    T::Error: Into<StdError>,
+    T::ResponseBody: Body<Data = Bytes> + Send + 'static,
+    <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+{
+    fn get_path_from_str(path: &str) -> Path {
+        // Create a gMNI path from a string
+    
+        // TODO: need to add a generator for the Path in various formats
+        // e.g., /interfaces/interface[name=eth0]/state/counters
+        //       openconfig:interfaces:interface[name=eth0]:state:counters
+        //       interfaces/interface[name=eth0]/state/counters
+        //
+        // also need to handle attributes in XPath format (e.g., [name=eth0])
+        let mut path_elems = Vec::new();
+        if path.matches('/').count() > 0 {
+            for elem in path.split('/') {
+                path_elems.push(PathElem {
+                    name: elem.to_string(),
+                    ..Default::default()
+                });
+            }
+        } else {
+            path_elems.push(PathElem {
+                name: path.to_string(),
+                ..Default::default()
+            });
+        }
+        Path {
+            elem: path_elems,
+            ..Default::default()
+        }
+    }  
 
     /// Returns information from the target device about its capabilities
     /// according to the [gNMI Specification Section 3.2.2](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#322-the-capabilityresponse-message)
@@ -96,9 +108,9 @@ impl<'a> Client {
         let mut req = GetRequest::default();
 
         if prefix != "" {
-            req.prefix = Some(get_path_from_str(prefix));
+            req.prefix = Some(Self::get_path_from_str(prefix));
         }
-        req.path.push(get_path_from_str(path));
+        req.path.push(Self::get_path_from_str(path));
         req.set_type(data_type);
         req.set_encoding(encoding);
         for use_model in use_models {
@@ -115,8 +127,8 @@ impl<'a> Client {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Credentials<'a> {
-    username: &'a str,
-    password: &'a str,
+    pub(crate) username: &'a str,
+    pub(crate) password: &'a str,
 }
 
 /// Builder for [`Client`]s
@@ -124,8 +136,8 @@ pub struct Credentials<'a> {
 /// Used to configure and create instances of [`Client`].
 #[derive(Debug, Clone)]
 pub struct ClientBuilder<'a> {
-    target: &'a str,
-    creds: Option<Credentials<'a>>,
+    pub(crate) target: &'a str,
+    pub(crate) creds: Option<Credentials<'a>>,
     tls_settings: Option<ClientTlsConfig>,
 }
 
@@ -154,6 +166,13 @@ impl<'a> ClientBuilder<'a> {
         self
     }
 
+    #[cfg(feature = "dangerous_configuration")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
+    /// Access configuration options that are dangerous and require extra care.
+    pub fn dangerous(self) -> DangerousClientBuilder<'a> {
+        DangerousClientBuilder::from(self)
+    }
+
     /// Consume the [`ClientBuilder`] and return a [`Client`].
     ///
     /// # Errors
@@ -161,7 +180,9 @@ impl<'a> ClientBuilder<'a> {
     /// - Returns [`GinmiError::TransportError`] if the TLS-Settings are invalid.
     /// - Returns [`GinmiError::TransportError`] if a connection to the target could not be
     /// established.
-    pub async fn build(self) -> Result<Client, GinmiError> {
+    pub async fn build(
+        self,
+    ) -> Result<Client<InterceptedService<Channel, AuthInterceptor>>, GinmiError> {
         let uri = match Uri::from_str(self.target) {
             Ok(u) => u,
             Err(e) => return Err(GinmiError::InvalidUriError(e.to_string())),
@@ -174,22 +195,17 @@ impl<'a> ClientBuilder<'a> {
         }
 
         let channel = endpoint.connect().await?;
-
-        return if let Some(creds) = self.creds {
-            let user_header = HeaderValue::from_str(creds.username)?;
-            let pass_header = HeaderValue::from_str(creds.password)?;
-            Ok(Client {
-                inner: GNmiClient::new(AuthService::new(
-                    channel,
-                    Some(Arc::new(user_header)),
-                    Some(Arc::new(pass_header)),
-                )),
-            })
-        } else {
-            Ok(Client {
-                inner: GNmiClient::new(AuthService::new(channel, None, None)),
-            })
+        let (username, password) = match self.creds {
+            Some(c) => (
+                Some(AsciiMetadataValue::from_str(c.username)?),
+                Some(AsciiMetadataValue::from_str(c.password)?),
+            ),
+            None => (None, None),
         };
+
+        Ok(Client {
+            inner: GNmiClient::with_interceptor(channel, AuthInterceptor::new(username, password)),
+        })
     }
 }
 
@@ -199,7 +215,9 @@ mod tests {
 
     #[tokio::test]
     async fn invalid_uri() {
-        let client = Client::builder("$$$$").build().await;
+        let client = Client::<InterceptedService<Channel, AuthInterceptor>>::builder("$$$$")
+            .build()
+            .await;
         assert!(client.is_err());
     }
 
@@ -214,33 +232,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_client_connection() {
-        //const CERT: &str = "CA Certificate";
-
-        const CERT: &str = "-----BEGIN CERTIFICATE-----
-MIIDfzCCAmegAwIBAgICB+MwDQYJKoZIhvcNAQELBQAwUTELMAkGA1UEBhMCVVMx
-CTAHBgNVBAcTADEVMBMGA1UEChMMY29udGFpbmVybGFiMQkwBwYDVQQLEwAxFTAT
-BgNVBAMTDHNybDAxIGxhYiBDQTAeFw0yNDAyMTMxOTA4MzJaFw0yNTAyMTMxOTA4
-MzJaMFExCzAJBgNVBAYTAlVTMQkwBwYDVQQHEwAxFTATBgNVBAoTDGNvbnRhaW5l
-cmxhYjEJMAcGA1UECxMAMRUwEwYDVQQDEwxzcmwwMSBsYWIgQ0EwggEiMA0GCSqG
-SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDKQELjOyurWYV6ht/go6zYlegvrFySBIZn
-WEKQ6Zv6HEsyLwgY2WgrvfszKhoCWX7Cc8jiyH72+US9tlLKP8yMl/m6qDLXABmM
-BkzCpgrPFR1Zm8E2taI/6chlfeO0M2yt7etg+HHSHrKDutXM48doLTHqFsO6yCI6
-6w+VG1msjgm2OFvnKKk5MsJ/TbVYc5IPSLEabdjrL7cufDPFnBItI64fL+SrpXLr
-g3bVeaKjExXntrGOR+G2LKAPLmRG0HtEVFSrul0fPpScTaD7UkgPps9QX550Hu2L
-X01pPcwRoXSHNWy0NNYxaFT0K9pXtn7HQYEYO5X9WCY8QdbO5skFAgMBAAGjYTBf
-MA4GA1UdDwEB/wQEAwIChDAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwEw
-DwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQU9WlaYHnZKkUCmQ6aGmoHNMTPfhcw
-DQYJKoZIhvcNAQELBQADggEBAAgMb2DPYdGp2bNe3012mB3NShHII/9OKjHLlqPP
-rQ002/qRL5SSaAzQz6m9/LMK5kPYemvmeInP16L2r6nk9BUvk2cuMiS02eUYDP+w
-0kJ3oh2xF9XGpVxjh0p8HonR1+EDxlciX/8BXs5cul44VsFlNXdkR9LrGP1WAo68
-S5lOwsZm5Zb0Rmj+yQk5XIuU47vP8lqeqHgA+6UM3PWkz6ElaXyUqwa3POGV5mee
-qGsputHX3sASxEBKOBfpISuSKAVIJugPpOTWKOig5bmh6tx8T+n52wNA0wq39t0u
-vvqc8ppQMQs/qOCtLea7p3GmhwIFCcsH8vIW0Cik9maLPs4=
------END CERTIFICATE-----";
-
         let mut client = Client::builder("https://clab-srl01-srl:57400")
-            .tls(CERT, "clab-srl01-srl")
             .credentials("admin", "NokiaSrl1!")
+            .dangerous()
+            .disable_certificate_verification()
             .build()
             .await
             .unwrap();
