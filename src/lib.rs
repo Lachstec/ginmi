@@ -8,6 +8,7 @@
 mod auth;
 pub mod client;
 pub mod error;
+pub mod path;
 
 #[allow(clippy::all)]
 pub(crate) mod gen {
