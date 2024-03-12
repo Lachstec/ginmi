@@ -1,7 +1,29 @@
 use crate::gen::gnmi::CapabilityResponse;
 use crate::gen::gnmi::ModelData;
+use std::convert::From;
 
-pub use crate::gen::gnmi::Encoding;
+use crate::gen::gnmi::Encoding as GnmiEncoding;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Encoding {
+    Json,
+    Bytes,
+    Proto,
+    JsonIetf,
+    Ascii,
+}
+
+impl From<Encoding> for GnmiEncoding {
+    fn from(value: Encoding) -> Self {
+        match value {
+            Encoding::Json => Self::Json,
+            Encoding::JsonIetf => Self::JsonIetf,
+            Encoding::Bytes => Self::Bytes,
+            Encoding::Ascii => Self::Ascii,
+            Encoding::Proto => Self::Proto,
+        }
+    }
+}
 
 /// Capabilities of a given gNMI Target device.
 ///
@@ -100,14 +122,7 @@ impl<'a> Capabilities {
     /// # }
     /// ```
     pub fn supports_encoding(&self, encoding: Encoding) -> bool {
-        let enc: i32 = match encoding {
-            Encoding::Json => 0,
-            Encoding::Bytes => 1,
-            Encoding::Proto => 2,
-            Encoding::Ascii => 3,
-            Encoding::JsonIetf => 4,
-        };
-
+        let enc: i32 = GnmiEncoding::from(encoding) as i32;
         self.0.supported_encodings.contains(&enc)
     }
 }
