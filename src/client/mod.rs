@@ -18,11 +18,11 @@
 //! # })}
 //! ```
 mod capabilities;
-mod client;
 #[cfg(feature = "dangerous_configuration")]
 #[cfg_attr(docsrs, doc(cfg(feature = "dangerous_configuration")))]
 pub mod dangerous;
+mod gnmi_client;
 
-pub use client::{Client, ClientBuilder};
+pub use gnmi_client::{Client, ClientBuilder};
 
 pub use capabilities::{Capabilities, Encoding};
