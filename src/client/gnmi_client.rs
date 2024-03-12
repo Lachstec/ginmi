@@ -231,6 +231,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "dangerous_configuration")]
     async fn test_client_connection() {
         let mut client = Client::builder("https://clab-srl01-srl:57400")
             .credentials("admin", "NokiaSrl1!")
